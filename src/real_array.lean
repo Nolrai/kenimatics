@@ -167,7 +167,10 @@ lemma pop_back_simp (a : α ^^ n.succ) (i : ℕ) (i_h : i < n) : a.pop_back.read
 lemma fin_n_lift_fin_n_succ (i : ℕ) {p : i < n} {p' : i < n.succ} :
   (⟨i, p'⟩ : fin n.succ) = ↑(⟨i, p⟩ : fin n) :=
   begin
-    library_search,
+    rw fin.eq_iff_veq,
+    simp,
+    symmetry,
+    exact fin.coe_val_of_lt p',
   end
 
 @[simp]
@@ -182,8 +185,7 @@ lemma pop_back_simp' (a : α ^^ n.succ) (i : fin n) : a.pop_back.read i = a.read
   unfold array.read d_array.read,
   simp,
   congr,
-
-
+  apply fin_n_lift_fin_n_succ,
   end
 
 @[simp]
@@ -199,12 +201,10 @@ lemma array.map_pop_back (a : α ^^ n.succ) (f : α → α) :
   simp,
   end
 
-lemma array.smul_pop_back (r : α) (a : α ^^ n +1) :
- (r • a).pop_back = r • a.pop_back :=
- begin
-   unfold has_scalar.smul,
-   rw
- end
+@[simp]
+lemma array.smul_pop_back [nondiscrete_normed_field α] (r : α) (a : α ^^ n +1)  :
+  (r • a).pop_back = r • a.pop_back :=
+  array.map_pop_back a (λ (y : α), r * y)
 
 lemma from_pop_back (P : α → Prop) (a : α ^^ n.succ)
   (last_hyp : P (a.read ⟨n, nat.lt.base n⟩))
@@ -275,7 +275,7 @@ lemma array.map₂_pop_back (a b : α ^^ n.succ) (f : α → α → α) :
   simp,
   end
 
-end .
+end
 
 section real_array
 
@@ -434,7 +434,7 @@ lemma real_array.inner_smul_left (x y : ℝ ^^ n) (r : ℝ)
         rw left_distrib,
         congr' 1,
         {apply mul_assoc},
-
+        apply n_ih,
       },
   end
 
@@ -444,6 +444,8 @@ instance : inner_product_space.core (ℝ ^^ n) :=
     nonneg := real_array.nonneg,
     definite := real_array.definiate,
     add_left := real_array.inner_add_left,
-    smul_left := _,
+    smul_left := real_array.inner_smul_left,
     .. array.has_inner
   }
+
+end real_array
