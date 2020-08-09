@@ -1,4 +1,3 @@
-import analysis.calculus.deriv
 import analysis.normed_space.real_inner_product
 
 section -- 'vectors' implemented as arrays.
@@ -90,6 +89,13 @@ instance : add_comm_group (α ^^ n) :=
 instance : has_scalar α (α ^^ n) :=
   ⟨λ x v, v.map (λ y, x * y)⟩
 
+@[simp]
+lemma has_scalar_simp (r : α) (v : α ^^ n) :
+  r • v = v.map (λ y, r * y) :=
+  begin
+    unfold has_scalar.smul,
+  end
+
 @[simp] lemma array.unfold_scalar (x : α) (a : α ^^ n) (i)
   : (x • a).read i = x * a.read i := rfl
 
@@ -102,16 +108,6 @@ instance : vector_space α (α ^^ n) :=
     zero_smul := begin intros a, ext, simp, end,
     .. array.has_scalar
   }
-
-noncomputable
-def total_deriv
-  {β γ} [normed_group γ] [normed_space α γ]
-  (surface : β → γ) (path : α → β) (t : α) :=
-  deriv (surface ∘ path) t
-
-def coordinate_path : fin n → (α ^^ n) → α →  α ^^ n
-  | ix v₀ t := v₀.write ix (v₀.read ix + t)
-
 end
 
 section
@@ -190,6 +186,26 @@ lemma pop_back_simp' (a : α ^^ n.succ) (i : fin n) : a.pop_back.read i = a.read
 
   end
 
+@[simp]
+lemma array.map_pop_back (a : α ^^ n.succ) (f : α → α) :
+  (a.map f).pop_back = a.pop_back.map f :=
+  begin
+  ext,
+  simp,
+  unfold map d_array.map d_array.foreach d_array.iterate array.read d_array.read,
+  have H : ∀ {m} (x : α ^^ m) ix, x.data ix = x.read ix,
+    by {clear_except, intros, unfold array.read d_array.read},
+  simp_rw H,
+  simp,
+  end
+
+lemma array.smul_pop_back (r : α) (a : α ^^ n +1) :
+ (r • a).pop_back = r • a.pop_back :=
+ begin
+   unfold has_scalar.smul,
+   rw
+ end
+
 lemma from_pop_back (P : α → Prop) (a : α ^^ n.succ)
   (last_hyp : P (a.read ⟨n, nat.lt.base n⟩))
   (pop_back_hyp : ∀ i, P (a.pop_back.read i))
@@ -253,11 +269,10 @@ lemma foldl_induction_down
 
 @[simp]
 lemma array.map₂_pop_back (a b : α ^^ n.succ) (f : α → α → α) :
-  (array.map₂ f a b).pop_back = array.map₂ f (a.pop_back) (a.pop_back) :=
+  (array.map₂ f a b).pop_back = array.map₂ f (a.pop_back) (b.pop_back) :=
   begin
-  induction n,
-  {rw },
-  {}
+  ext,
+  simp,
   end
 
 end .
@@ -389,12 +404,46 @@ lemma real_array.definiate (a : ℝ ^^ n) : inner a a = 0 → a = 0 :=
   { rw H, simp}
   end
 
+lemma real_array.inner_add_left (x y z : ℝ ^^ n)
+  : inner (x + y) z = inner x z + inner y z :=
+  begin
+    induction n, {simp},
+    simp at *,
+    transitivity
+      (x.read ⟨n_n, _⟩ * z.read ⟨n_n, _⟩ + (y.read ⟨n_n, _⟩ * z.read ⟨n_n, _⟩) +
+      ( (array.map₂ has_mul.mul x z).pop_back.foldl 0 has_add.add +
+        (array.map₂ has_mul.mul y z).pop_back.foldl 0 has_add.add)),
+
+    all_goals {try {apply nat.lt.base}},
+
+    { congr' 1,
+      {apply right_distrib},
+      {rw array.map₂_pop_back, unfold1 has_add.add at *, simp, apply n_ih}
+    },
+
+    { simp, ring },
+  end
+
+lemma real_array.inner_smul_left (x y : ℝ ^^ n) (r : ℝ)
+  : inner (r • x) y = r * inner x y :=
+  begin
+    induction n,
+    case nat.zero: {simp},
+    case nat.succ:
+      { simp at *,
+        rw left_distrib,
+        congr' 1,
+        {apply mul_assoc},
+
+      },
+  end
+
 noncomputable
 instance : inner_product_space.core (ℝ ^^ n) :=
   { comm := real_array.inner_comm,
     nonneg := real_array.nonneg,
     definite := real_array.definiate,
-    add_left := _,
+    add_left := real_array.inner_add_left,
     smul_left := _,
     .. array.has_inner
   }
