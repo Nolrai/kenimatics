@@ -275,6 +275,21 @@ lemma array.map₂_pop_back (a b : α ^^ n.succ) (f : α → α → α) :
   simp,
   end
 
+def fin.lower {m n} (i : fin (n + m)) (p : i.val >= n) : fin m :=
+  ⟨i - n, (nat.sub_lt_left_iff_lt_add p).mpr i.is_lt⟩
+
+
+def array.append {α n} (a : α ^^ n) {m : nat} (b : α ^^ m) :
+  α ^^ (n + m) :=
+    { data :=
+      λ (i : fin (n+m)),
+        if p: i.val < n
+          then a.read ⟨i.val, p⟩
+          else b.read (i.lower (not_lt.mp p))
+    }
+
+infix `⧺`:40 := (λ {α} {n m} a b, @array.append α n a m b)
+
 end
 
 section real_array
@@ -447,5 +462,9 @@ instance : inner_product_space.core (ℝ ^^ n) :=
     smul_left := real_array.inner_smul_left,
     .. array.has_inner
   }
+
+noncomputable
+instance : inner_product_space (ℝ ^^ n) :=
+  begin refine inner_product_space.of_core _, apply_instance end
 
 end real_array
